@@ -7,7 +7,7 @@ import gc  # Garbage Collector para liberar memória
 # --- CONFIGURAÇÃO ---
 # Nome exato do arquivo gerado pelo exportar_tudo.py
 ARQUIVO_HOST_METRICS = 'metricas_FILTRADAS_node_container.csv'
-# Padrão para encontrar seus arquivos de 2026
+
 PADRAO_GRAFANA_FILES = '2026*.csv'
 TIMESTAMP_COL = 'timestamp'
 
