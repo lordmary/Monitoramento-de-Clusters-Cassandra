@@ -5,7 +5,7 @@ from datetime import datetime
 
 #  ================== CONFIGURAÇÕES ==================
 
-START_TIMESTAMP = 1779149900 #dia 19 de maio 2026
+START_TIMESTAMP = 1779149900 
 
 END_TIMESTAMP = 1779160100 
 STEP = "1s"
