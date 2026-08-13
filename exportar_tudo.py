@@ -1,0 +1,170 @@
+import requests
+import pandas as pd
+import time
+from datetime import datetime
+
+#  ================== CONFIGURAÇÕES ==================
+
+START_TIMESTAMP = 1779149900 #dia 19 de maio 2026
+
+END_TIMESTAMP = 1779160100 
+STEP = "1s"
+CHUNK_DURATION_SECONDS = 300 # 5 minutos
+
+PROMETHEUS_URL = "http://prometheus.cassandracluster.com"
+PROXIES = {
+    'http': 'socks5://localhost:1337',
+    'https': 'socks5://localhost:1337'
+}
+
+# Novo nome de arquivo para esta versão
+ARQUIVO_SAIDA = "metricas_FILTRADAS_node_container.csv"
+
+# Lista das 603 métricas
+LISTA_METRICAS = [
+    "cadvisor_version_info","container_blkio_device_usage_total","container_cpu_load_average_10s","container_cpu_load_d_average_10s","container_cpu_system_seconds_total","container_cpu_usage_seconds_total","container_cpu_user_seconds_total","container_fs_inodes_free","container_fs_inodes_total","container_fs_io_current","container_fs_io_time_seconds_total","container_fs_io_time_weighted_seconds_total","container_fs_limit_bytes","container_fs_read_seconds_total","container_fs_reads_bytes_total","container_fs_reads_merged_total","container_fs_reads_total","container_fs_sector_reads_total","container_fs_sector_writes_total","container_fs_usage_bytes","container_fs_write_seconds_total","container_fs_writes_bytes_total","container_fs_writes_merged_total","container_fs_writes_total","container_last_seen","container_memory_cache","container_memory_failcnt","container_memory_failures_total","container_memory_kernel_usage","container_memory_mapped_file","container_memory_max_usage_bytes","container_memory_rss","container_memory_swap","container_memory_total_active_file_bytes","container_memory_total_inactive_file_bytes","container_memory_usage_bytes","container_memory_working_set_bytes","container_network_receive_bytes_total","container_network_receive_errors_total","container_network_receive_packets_dropped_total","container_network_receive_packets_total","container_network_transmit_bytes_total","container_network_transmit_errors_total","container_network_transmit_packets_dropped_total","container_network_transmit_packets_total","container_oom_events_total","container_pressure_cpu_stalled_seconds_total","container_pressure_cpu_waiting_seconds_total","container_pressure_io_stalled_seconds_total","container_pressure_io_waiting_seconds_total","container_pressure_memory_stalled_seconds_total","container_pressure_memory_waiting_seconds_total","container_scrape_error","container_spec_cpu_period","container_spec_cpu_shares","container_spec_memory_limit_bytes","container_spec_memory_reservation_limit_bytes","container_spec_memory_swap_limit_bytes","container_start_time_seconds","container_tasks_state","go_gc_cycles_automatic_gc_cycles_total","go_gc_cycles_forced_gc_cycles_total","go_gc_cycles_total_gc_cycles_total","go_gc_duration_seconds","go_gc_duration_seconds_count","go_gc_duration_seconds_sum","go_gc_gogc_percent","go_gc_gomemlimit_bytes","go_gc_heap_allocs_by_size_bytes_bucket","go_gc_heap_allocs_by_size_bytes_count","go_gc_heap_allocs_by_size_bytes_sum","go_gc_heap_allocs_bytes_total","go_gc_heap_allocs_objects_total","go_gc_heap_frees_by_size_bytes_bucket","go_gc_heap_frees_by_size_bytes_count","go_gc_heap_frees_by_size_bytes_sum","go_gc_heap_frees_bytes_total","go_gc_heap_frees_objects_total","go_gc_heap_goal_bytes","go_gc_heap_live_bytes","go_gc_heap_objects_objects","go_gc_heap_tiny_allocs_objects_total","go_gc_limiter_last_enabled_gc_cycle","go_gc_pauses_seconds_bucket","go_gc_pauses_seconds_count","go_gc_pauses_seconds_sum","go_gc_scan_globals_bytes","go_gc_scan_heap_bytes","go_gc_scan_stack_bytes","go_gc_scan_total_bytes","go_gc_stack_starting_size_bytes","go_goroutines","go_info","go_memstats_alloc_bytes","go_memstats_alloc_bytes_total","go_memstats_buck_hash_sys_bytes","go_memstats_frees_total","go_memstats_gc_sys_bytes","go_memstats_heap_alloc_bytes","go_memstats_heap_idle_bytes","go_memstats_heap_inuse_bytes","go_memstats_heap_objects","go_memstats_heap_released_bytes","go_memstats_heap_sys_bytes","go_memstats_last_gc_time_seconds","go_memstats_mallocs_total","go_memstats_mcache_inuse_bytes","go_memstats_mcache_sys_bytes","go_memstats_mspan_inuse_bytes","go_memstats_mspan_sys_bytes","go_memstats_next_gc_bytes","go_memstats_other_sys_bytes","go_memstats_stack_inuse_bytes","go_memstats_stack_sys_bytes","go_memstats_sys_bytes","go_sched_gomaxprocs_threads","go_sched_goroutines_goroutines","go_sched_latencies_seconds_bucket","go_sched_latencies_seconds_count","go_sched_latencies_seconds_sum","go_sched_pauses_stopping_gc_seconds_bucket","go_sched_pauses_stopping_gc_seconds_count","go_sched_pauses_stopping_gc_seconds_sum","go_sched_pauses_stopping_other_seconds_bucket","go_sched_pauses_stopping_other_seconds_count","go_sched_pauses_stopping_other_seconds_sum","go_sched_pauses_total_gc_seconds_bucket","go_sched_pauses_total_gc_seconds_count","go_sched_pauses_total_gc_seconds_sum","go_sched_pauses_total_other_seconds_bucket","go_sched_pauses_total_other_seconds_count","go_sched_pauses_total_other_seconds_sum","go_sync_mutex_wait_total_seconds_total","go_threads","machine_cpu_cores","machine_cpu_physical_cores","machine_cpu_sockets","machine_memory_bytes","machine_nvm_avg_power_budget_watts","machine_nvm_capacity","machine_scrape_error","machine_swap_bytes","net_conntrack_dialer_conn_attempted_total","net_conntrack_dialer_conn_closed_total","net_conntrack_dialer_conn_established_total","net_conntrack_dialer_conn_failed_total","net_conntrack_listener_conn_accepted_total","net_conntrack_listener_conn_closed_total","node_arp_entries","node_boot_time_seconds","node_context_switches_total","node_cooling_device_cur_state","node_cooling_device_max_state","node_cpu_guest_seconds_total","node_cpu_seconds_total","node_disk_discard_time_seconds_total","node_disk_discarded_sectors_total","node_disk_discards_completed_total","node_disk_discards_merged_total","node_disk_flush_requests_time_seconds_total","node_disk_flush_requests_total","node_disk_info","node_disk_io_now","node_disk_io_time_seconds_total","node_disk_io_time_weighted_seconds_total","node_disk_read_bytes_total","node_disk_read_time_seconds_total","node_disk_reads_completed_total","node_disk_reads_merged_total","node_disk_write_time_seconds_total","node_disk_writes_completed_total","node_disk_writes_merged_total","node_disk_written_bytes_total","node_dmi_info","node_entropy_available_bits","node_entropy_pool_size_bits","node_exporter_build_info","node_filefd_allocated","node_filefd_maximum","node_filesystem_avail_bytes","node_filesystem_device_error","node_filesystem_files","node_filesystem_files_free","node_filesystem_free_bytes","node_filesystem_mount_info","node_filesystem_purgeable_bytes","node_filesystem_readonly","node_filesystem_size_bytes","node_forks_total","node_intr_total","node_ipvs_connections_total","node_ipvs_incoming_bytes_total","node_ipvs_incoming_packets_total","node_ipvs_outgoing_bytes_total","node_ipvs_outgoing_packets_total","node_load1","node_load15","node_load5","node_memory_Active_anon_bytes","node_memory_Active_bytes","node_memory_Active_file_bytes","node_memory_AnonHugePages_bytes","node_memory_AnonPages_bytes","node_memory_Bounce_bytes","node_memory_Buffers_bytes","node_memory_Cached_bytes","node_memory_CommitLimit_bytes","node_memory_Committed_AS_bytes","node_memory_DirectMap2M_bytes","node_memory_DirectMap4k_bytes","node_memory_Dirty_bytes","node_memory_HardwareCorrupted_bytes","node_memory_HugePages_Free","node_memory_HugePages_Rsvd","node_memory_HugePages_Surp","node_memory_HugePages_Total","node_memory_Hugepagesize_bytes","node_memory_Inactive_anon_bytes","node_memory_Inactive_bytes","node_memory_Inactive_file_bytes","node_memory_KernelStack_bytes","node_memory_Mapped_bytes","node_memory_MemAvailable_bytes","node_memory_MemFree_bytes","node_memory_MemTotal_bytes","node_memory_Mlocked_bytes","node_memory_NFS_Unstable_bytes","node_memory_PageTables_bytes","node_memory_Percpu_bytes","node_memory_SReclaimable_bytes","node_memory_SUnreclaim_bytes","node_memory_ShmemHugePages_bytes","node_memory_ShmemPmdMapped_bytes","node_memory_Shmem_bytes","node_memory_Slab_bytes","node_memory_SwapCached_bytes","node_memory_SwapFree_bytes","node_memory_SwapTotal_bytes","node_memory_Unevictable_bytes","node_memory_VmallocChunk_bytes","node_memory_VmallocTotal_bytes","node_memory_VmallocUsed_bytes","node_memory_WritebackTmp_bytes","node_memory_Writeback_bytes","node_meta","node_netstat_Icmp6_InErrors","node_netstat_Icmp6_InMsgs","node_netstat_Icmp6_OutMsgs","node_netstat_Icmp_InErrors","node_netstat_Icmp_InMsgs","node_netstat_Icmp_OutMsgs","node_netstat_Ip6_InOctets","node_netstat_Ip6_OutOctets","node_netstat_IpExt_InOctets","node_netstat_IpExt_OutOctets","node_netstat_Ip_Forwarding","node_netstat_TcpExt_ListenDrops","node_netstat_TcpExt_ListenOverflows","node_netstat_TcpExt_SyncookiesFailed","node_netstat_TcpExt_SyncookiesRecv","node_netstat_TcpExt_SyncookiesSent","node_netstat_TcpExt_TCPOFOQueue","node_netstat_TcpExt_TCPRcvQDrop","node_netstat_TcpExt_TCPSynRetrans","node_netstat_TcpExt_TCPTimeouts","node_netstat_Tcp_ActiveOpens","node_netstat_Tcp_CurrEstab","node_netstat_Tcp_InErrs","node_netstat_Tcp_InSegs","node_netstat_Tcp_OutRsts","node_netstat_Tcp_OutSegs","node_netstat_Tcp_PassiveOpens","node_netstat_Tcp_RetransSegs","node_netstat_Udp6_InDatagrams","node_netstat_Udp6_InErrors","node_netstat_Udp6_NoPorts","node_netstat_Udp6_OutDatagrams","node_netstat_Udp6_RcvbufErrors","node_netstat_Udp6_SndbufErrors","node_netstat_UdpLite6_InErrors","node_netstat_UdpLite_InErrors","node_netstat_Udp_InDatagrams","node_netstat_Udp_InErrors","node_netstat_Udp_NoPorts","node_netstat_Udp_OutDatagrams","node_netstat_Udp_RcvbufErrors","node_netstat_Udp_SndbufErrors","node_network_address_assign_type","node_network_carrier","node_network_carrier_changes_total","node_network_carrier_down_changes_total","node_network_carrier_up_changes_total","node_network_device_id","node_network_dormant","node_network_flags","node_network_iface_id","node_network_iface_link","node_network_iface_link_mode","node_network_info","node_network_mtu_bytes","node_network_name_assign_type","node_network_net_dev_group","node_network_protocol_type","node_network_receive_bytes_total",
+    "node_network_receive_compressed_total","node_network_receive_drop_total","node_network_receive_errs_total","node_network_receive_fifo_total","node_network_receive_frame_total","node_network_receive_multicast_total","node_network_receive_nohandler_total","node_network_receive_packets_total","node_network_speed_bytes","node_network_transmit_bytes_total","node_network_transmit_carrier_total","node_network_transmit_colls_total","node_network_transmit_compressed_total","node_network_transmit_drop_total","node_network_transmit_errs_total","node_network_transmit_fifo_total","node_network_transmit_packets_total","node_network_transmit_queue_length","node_network_up","node_nf_conntrack_entries","node_nf_conntrack_entries_limit",
+    "node_pressure_cpu_waiting_seconds_total","node_pressure_io_stalled_seconds_total","node_pressure_io_waiting_seconds_total",
+    "node_pressure_memory_stalled_seconds_total","node_pressure_memory_waiting_seconds_total","node_procs_blocked","node_procs_running",
+    "node_schedstat_running_seconds_total","node_schedstat_timeslices_total","node_schedstat_waiting_seconds_total",
+    "node_scrape_collector_duration_seconds","node_scrape_collector_success","node_selinux_enabled","node_sockstat_FRAG6_inuse",
+    "node_sockstat_FRAG6_memory","node_sockstat_FRAG_inuse","node_sockstat_FRAG_memory","node_sockstat_RAW6_inuse",
+    "node_sockstat_RAW_inuse","node_sockstat_TCP6_inuse","node_sockstat_TCP_alloc","node_sockstat_TCP_inuse","node_sockstat_TCP_mem",
+    "node_sockstat_TCP_mem_bytes","node_sockstat_TCP_orphan","node_sockstat_TCP_tw","node_sockstat_UDP6_inuse","node_sockstat_UDPLITE6_inuse",
+    "node_sockstat_UDPLITE_inuse","node_sockstat_UDP_inuse","node_sockstat_UDP_mem","node_sockstat_UDP_mem_bytes","node_sockstat_sockets_used",
+    "node_softnet_backlog_len","node_softnet_cpu_collision_total","node_softnet_dropped_total","node_softnet_flow_limit_count_total",
+    "node_softnet_processed_total","node_softnet_received_rps_total","node_softnet_times_squeezed_total","node_textfile_mtime_seconds",
+    "node_textfile_scrape_error","node_time_clocksource_available_info","node_time_clocksource_current_info","node_time_seconds",
+    "node_time_zone_offset_seconds","node_timex_estimated_error_seconds","node_timex_frequency_adjustment_ratio","node_timex_loop_time_constant",
+    "node_timex_maxerror_seconds","node_timex_offset_seconds","node_timex_pps_calibration_total","node_timex_pps_error_total",
+    "node_timex_pps_frequency_hertz","node_timex_pps_jitter_seconds","node_timex_pps_jitter_total","node_timex_pps_shift_seconds",
+    "node_timex_pps_stability_exceeded_total","node_timex_pps_stability_hertz","node_timex_status","node_timex_sync_status",
+    "node_timex_tai_offset_seconds","node_timex_tick_seconds","node_udp_queues","node_uname_info","node_vmstat_oom_kill",
+    "node_vmstat_pgfault","node_vmstat_pgmajfault","node_vmstat_pgpgin","node_vmstat_pgpgout","node_vmstat_pswpin",
+    "node_vmstat_pswpout","process_cpu_seconds_total","process_max_fds","process_network_receive_bytes_total",
+    "process_network_transmit_bytes_total","process_open_fds","process_resident_memory_bytes","process_start_time_seconds",
+    "process_virtual_memory_bytes","process_virtual_memory_max_bytes","prometheus_api_notification_active_subscribers",
+    "prometheus_api_notification_updates_dropped_total","prometheus_api_notification_updates_sent_total","prometheus_build_info",
+    "prometheus_config_last_reload_success_timestamp_seconds","prometheus_config_last_reload_successful","prometheus_engine_queries",
+    "prometheus_engine_queries_concurrent_max","prometheus_engine_query_duration_seconds","prometheus_engine_query_duration_seconds_count",
+    "prometheus_engine_query_duration_seconds_sum","prometheus_engine_query_log_enabled","prometheus_engine_query_log_failures_total",
+    "prometheus_engine_query_samples_total","prometheus_http_request_duration_seconds_bucket","prometheus_http_request_duration_seconds_count",
+    "prometheus_http_request_duration_seconds_sum","prometheus_http_requests_total","prometheus_http_response_size_bytes_bucket",
+    "prometheus_http_response_size_bytes_count","prometheus_http_response_size_bytes_sum","prometheus_notifications_alertmanagers_discovered",
+    "prometheus_notifications_dropped_total","prometheus_notifications_queue_capacity","prometheus_notifications_queue_length","prometheus_ready",
+    "prometheus_remote_read_handler_queries","prometheus_remote_storage_exemplars_in_total","prometheus_remote_storage_highest_timestamp_in_seconds",
+    "prometheus_remote_storage_histograms_in_total","prometheus_remote_storage_samples_in_total",
+    "prometheus_remote_storage_string_interner_zero_reference_releases_total","prometheus_rule_evaluation_duration_seconds",
+    "prometheus_rule_evaluation_duration_seconds_count","prometheus_rule_evaluation_duration_seconds_sum",
+    "prometheus_rule_group_duration_seconds","prometheus_rule_group_duration_seconds_count","prometheus_rule_group_duration_seconds_sum",
+    "prometheus_sd_azure_cache_hit_total","prometheus_sd_azure_failures_total","prometheus_sd_consul_rpc_duration_seconds",
+    "prometheus_sd_consul_rpc_duration_seconds_count","prometheus_sd_consul_rpc_duration_seconds_sum","prometheus_sd_consul_rpc_failures_total",
+    "prometheus_sd_discovered_targets","prometheus_sd_dns_lookup_failures_total","prometheus_sd_dns_lookups_total","prometheus_sd_failed_configs",
+    "prometheus_sd_file_read_errors_total","prometheus_sd_file_scan_duration_seconds","prometheus_sd_file_scan_duration_seconds_count",
+    "prometheus_sd_file_scan_duration_seconds_sum","prometheus_sd_file_watcher_errors_total","prometheus_sd_http_failures_total",
+    "prometheus_sd_kubernetes_events_total","prometheus_sd_kubernetes_failures_total","prometheus_sd_kuma_fetch_duration_seconds",
+    "prometheus_sd_kuma_fetch_duration_seconds_count","prometheus_sd_kuma_fetch_duration_seconds_sum","prometheus_sd_kuma_fetch_failures_total",
+    "prometheus_sd_kuma_fetch_skipped_updates_total","prometheus_sd_linode_failures_total","prometheus_sd_nomad_failures_total","prometheus_sd_received_updates_total","prometheus_sd_refresh_duration_seconds","prometheus_sd_refresh_duration_seconds_count","prometheus_sd_refresh_duration_seconds_sum","prometheus_sd_refresh_failures_total","prometheus_sd_updates_delayed_total","prometheus_sd_updates_total","prometheus_target_interval_length_seconds","prometheus_target_interval_length_seconds_count","prometheus_target_interval_length_seconds_sum","prometheus_target_metadata_cache_bytes","prometheus_target_metadata_cache_entries","prometheus_target_scrape_pool_exceeded_label_limits_total","prometheus_target_scrape_pool_exceeded_target_limit_total","prometheus_target_scrape_pool_reloads_failed_total","prometheus_target_scrape_pool_reloads_total","prometheus_target_scrape_pool_symboltable_items","prometheus_target_scrape_pool_sync_total","prometheus_target_scrape_pool_target_limit","prometheus_target_scrape_pool_targets","prometheus_target_scrape_pools_failed_total","prometheus_target_scrape_pools_total","prometheus_target_scrapes_cache_flush_forced_total","prometheus_target_scrapes_exceeded_body_size_limit_total","prometheus_target_scrapes_exceeded_native_histogram_bucket_limit_total","prometheus_target_scrapes_exceeded_sample_limit_total","prometheus_target_scrapes_exemplar_out_of_order_total","prometheus_target_scrapes_sample_duplicate_timestamp_total","prometheus_target_scrapes_sample_out_of_bounds_total","prometheus_target_scrapes_sample_out_of_order_total","prometheus_target_sync_failed_total","prometheus_target_sync_length_seconds","prometheus_target_sync_length_seconds_count","prometheus_target_sync_length_seconds_sum","prometheus_template_text_expansion_failures_total","prometheus_template_text_expansions_total","prometheus_treecache_watcher_goroutines","prometheus_treecache_zookeeper_failures_total","prometheus_tsdb_blocks_loaded","prometheus_tsdb_checkpoint_creations_failed_total","prometheus_tsdb_checkpoint_creations_total","prometheus_tsdb_checkpoint_deletions_failed_total","prometheus_tsdb_checkpoint_deletions_total","prometheus_tsdb_clean_start","prometheus_tsdb_compaction_chunk_range_seconds_bucket","prometheus_tsdb_compaction_chunk_range_seconds_count","prometheus_tsdb_compaction_chunk_range_seconds_sum","prometheus_tsdb_compaction_chunk_samples_bucket","prometheus_tsdb_compaction_chunk_samples_count","prometheus_tsdb_compaction_chunk_samples_sum","prometheus_tsdb_compaction_chunk_size_bytes_bucket","prometheus_tsdb_compaction_chunk_size_bytes_count","prometheus_tsdb_compaction_chunk_size_bytes_sum","prometheus_tsdb_compaction_duration_seconds_bucket","prometheus_tsdb_compaction_duration_seconds_count","prometheus_tsdb_compaction_duration_seconds_sum","prometheus_tsdb_compaction_populating_block","prometheus_tsdb_compactions_failed_total","prometheus_tsdb_compactions_skipped_total","prometheus_tsdb_compactions_total","prometheus_tsdb_compactions_triggered_total","prometheus_tsdb_data_replay_duration_seconds","prometheus_tsdb_exemplar_exemplars_appended_total","prometheus_tsdb_exemplar_exemplars_in_storage","prometheus_tsdb_exemplar_last_exemplars_timestamp_seconds","prometheus_tsdb_exemplar_max_exemplars","prometheus_tsdb_exemplar_out_of_order_exemplars_total","prometheus_tsdb_exemplar_series_with_exemplars_in_storage","prometheus_tsdb_head_active_appenders","prometheus_tsdb_head_chunks","prometheus_tsdb_head_chunks_created_total","prometheus_tsdb_head_chunks_removed_total","prometheus_tsdb_head_chunks_storage_size_bytes","prometheus_tsdb_head_gc_duration_seconds_count","prometheus_tsdb_head_gc_duration_seconds_sum","prometheus_tsdb_head_max_time","prometheus_tsdb_head_max_time_seconds","prometheus_tsdb_head_min_time","prometheus_tsdb_head_min_time_seconds","prometheus_tsdb_head_out_of_order_samples_appended_total","prometheus_tsdb_head_samples_appended_total","prometheus_tsdb_head_series","prometheus_tsdb_head_series_created_total","prometheus_tsdb_head_series_not_found_total","prometheus_tsdb_head_series_removed_total","prometheus_tsdb_head_truncations_failed_total","prometheus_tsdb_head_truncations_total","prometheus_tsdb_isolation_high_watermark","prometheus_tsdb_isolation_low_watermark","prometheus_tsdb_lowest_timestamp","prometheus_tsdb_lowest_timestamp_seconds","prometheus_tsdb_mmap_chunk_corruptions_total","prometheus_tsdb_mmap_chunks_total","prometheus_tsdb_out_of_bound_samples_total","prometheus_tsdb_out_of_order_samples_total","prometheus_tsdb_reloads_failures_total","prometheus_tsdb_reloads_total","prometheus_tsdb_retention_limit_bytes","prometheus_tsdb_retention_limit_seconds","prometheus_tsdb_size_retentions_total","prometheus_tsdb_snapshot_replay_error_total","prometheus_tsdb_storage_blocks_bytes","prometheus_tsdb_symbol_table_size_bytes","prometheus_tsdb_time_retentions_total","prometheus_tsdb_tombstone_cleanup_seconds_bucket","prometheus_tsdb_tombstone_cleanup_seconds_count","prometheus_tsdb_tombstone_cleanup_seconds_sum","prometheus_tsdb_too_old_samples_total","prometheus_tsdb_vertical_compactions_total","prometheus_tsdb_wal_completed_pages_total","prometheus_tsdb_wal_corruptions_total","prometheus_tsdb_wal_fsync_duration_seconds","prometheus_tsdb_wal_fsync_duration_seconds_count","prometheus_tsdb_wal_fsync_duration_seconds_sum","prometheus_tsdb_wal_page_flushes_total","prometheus_tsdb_wal_record_bytes_saved_total","prometheus_tsdb_wal_record_part_writes_total","prometheus_tsdb_wal_record_parts_bytes_written_total","prometheus_tsdb_wal_segment_current","prometheus_tsdb_wal_storage_size_bytes","prometheus_tsdb_wal_truncate_duration_seconds_count","prometheus_tsdb_wal_truncate_duration_seconds_sum","prometheus_tsdb_wal_truncations_failed_total","prometheus_tsdb_wal_truncations_total","prometheus_tsdb_wal_writes_failed_total","prometheus_web_federation_errors_total","prometheus_web_federation_warnings_total","promhttp_metric_handler_errors_total","promhttp_metric_handler_requests_in_flight","promhttp_metric_handler_requests_total","scrape_duration_seconds","scrape_samples_post_metric_relabeling","scrape_samples_scraped","scrape_series_added",
+    "up"
+]
+# ======================================================
+
+def buscar_metrica_bruta(nome_metrica, start, end):
+    """
+    Busca a métrica BRUTA, sem 'sum()', para preservar todos os labels.
+    """
+    try:
+        response = requests.get(
+            f"{PROMETHEUS_URL}/api/v1/query_range",
+            proxies=PROXIES,
+            params={
+                'query': nome_metrica,
+                'start': start,
+                'end': end,
+                'step': STEP
+            },
+            timeout=90
+        )
+        response.raise_for_status()
+        return response.json().get('data', {}).get('result', [])
+    except Exception as e:
+        print(f"⚠ Erro ao buscar '{nome_metrica}': {e}")
+        return []
+# =================================================
+
+def main():
+    print(f"--- INICIANDO COLETA FILTRADA (node_ e container_) ---")
+    print(f"Período Total: {datetime.fromtimestamp(START_TIMESTAMP)} a {datetime.fromtimestamp(END_TIMESTAMP)}")
+    print(f"Buscando {len(LISTA_METRICAS)} métricas (aplicando filtro)...")
+
+    lista_dfs_por_chunk = []
+    current_start = START_TIMESTAMP
+    chunk_num = 1
+    metricas_processadas = 0 # Contador
+
+    while current_start < END_TIMESTAMP:
+        current_end = min(current_start + CHUNK_DURATION_SECONDS, END_TIMESTAMP)
+        print(f"\nProcessando Chunk #{chunk_num} ({datetime.fromtimestamp(current_start)})")
+        
+        dfs_do_chunk_atual = []
+        
+        for i, metrica in enumerate(LISTA_METRICAS):
+            
+            # ==========================================================
+            # FILTRO para container e node
+            if not (metrica.startswith("container_") or metrica.startswith("node_")):
+                continue # Pula esta métrica, pois não é 'node_' nem 'container_'
+            # ==========================================================
+
+            # Se chegou aqui, a métrica passou no filtro
+            if chunk_num == 1: # Só conta na primeira passagem
+                metricas_processadas += 1
+
+            print(f"  [{i+1}/{len(LISTA_METRICAS)}] Buscando (filtrado): {metrica:<40}", end="\r")
+            
+            resultados = buscar_metrica_bruta(metrica, current_start, current_end)
+            if not resultados:
+                continue
+
+            # Processa CADA SÉRIE (cada label) como uma coluna separada
+            for serie in resultados:
+                metric_labels = serie['metric']
+                if '__name__' in metric_labels:
+                    del metric_labels['__name__']
+                
+                labels_str = ",".join([f'{k}="{v}"' for k, v in metric_labels.items()])
+                nome_coluna = f"{metrica}{{{labels_str}}}"
+
+                df_temp = pd.DataFrame(serie['values'], columns=['timestamp', nome_coluna])
+                df_temp['timestamp'] = df_temp['timestamp'].astype(float)
+                df_temp.set_index('timestamp', inplace=True)
+                df_temp[nome_coluna] = pd.to_numeric(df_temp[nome_coluna], errors='coerce')
+                
+                dfs_do_chunk_atual.append(df_temp)
+        
+        if dfs_do_chunk_atual:
+            df_chunk_final = pd.concat(dfs_do_chunk_atual, axis=1)
+            lista_dfs_por_chunk.append(df_chunk_final)
+            print(f"\n  -> Chunk #{chunk_num} finalizado.")
+
+        current_start += CHUNK_DURATION_SECONDS
+        chunk_num += 1
+
+    print(f"\n\n--- COLETA FINALIZADA ---")
+    print(f"Métricas filtradas (node/container): {metricas_processadas} de {len(LISTA_METRICAS)}")
+    
+    if not lista_dfs_por_chunk:
+        print("Nenhum dado foi coletado. Verifique os filtros ou o período.")
+        return
+
+    print("Consolidando arquivo final...")
+    df_final = pd.concat(lista_dfs_por_chunk)
+    df_final.sort_index(inplace=True)
+    df_final = df_final[~df_final.index.duplicated(keep='first')]
+
+    df_final.to_csv(ARQUIVO_SAIDA)
+    print(f"SUCESSO! Arquivo '{ARQUIVO_SAIDA}' gerado.")
+    print(f"Dimensões Finais: {df_final.shape[0]} linhas x {df_final.shape[1]} colunas")
+
+if __name__ == "__main__":
+    main()
